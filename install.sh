@@ -52,8 +52,13 @@ python3 "$DIR/qd.py" --init
 chmod 700 "$DIR/data"
 ln -sf "$DIR/qd.py" /usr/local/bin/qd
 
-echo "==> 构建并启动(首次要几分钟)"
-cd "$DIR" && docker compose up -d --build
+echo "==> 拉取镜像"
+cd "$DIR"
+if ! docker compose pull; then
+  echo "==> 拉取失败,改为本地构建(要几分钟)"
+  docker compose build
+fi
+docker compose up -d
 
 echo
 echo "✅ 安装完成!输入 qd 回车进入管理菜单"

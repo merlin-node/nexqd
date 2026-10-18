@@ -18,7 +18,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 REPO = "merlin-node/nexqd"
 REPO_ZIP = f"https://github.com/{REPO}/archive/refs/heads/main.zip"
 REPO_RAW = f"https://raw.githubusercontent.com/{REPO}/main"
@@ -29,6 +29,7 @@ STATUS = DATA / "status.json"
 CONTAINER = "nexqd"
 APP_FILES = ["Dockerfile", "docker-compose.yml", "requirements.txt", "app", "qd.py",
              "install.sh", "README.md"]
+IMAGE = "ghcr.io/merlin-node/nexqd:latest"
 
 DEFAULT_CONF = {
     "tg": {"bot_token": "", "user_id": ""},
@@ -162,6 +163,18 @@ def running():
 
 def compose(*args):
     return sh(["docker", "compose", *args])
+
+
+def pull_or_build():
+    print("拉取最新镜像…")
+    if compose("pull") != 0:
+        warn("拉取失败,改为本地构建(几分钟)…")
+        if compose("build") != 0:
+            bad("构建失败")
+            return False
+    compose("up", "-d")
+    sh("docker image prune -f", quiet=True)
+    return True
 
 
 def need_running():
@@ -515,9 +528,9 @@ def apply_update(src):
         else:
             shutil.copy2(s, d)
     os.chmod(DIR / "qd.py", 0o755)
-    ok("文件已更新,开始重建(几分钟)…")
-    compose("up", "-d", "--build")
-    ok("更新完成,重新输入 qd 进入新版本")
+    ok("脚本文件已更新")
+    if pull_or_build():
+        ok("更新完成,重新输入 qd 进入新版本")
     sys.exit(0)
 
 
@@ -568,7 +581,8 @@ def update_menu():
         print(f"{D} 仓库:github.com/{REPO}{N}")
         print(LINE)
         v = choose([("1", "从 GitHub 更新"), ("2", "从本地 zip 更新"),
-                    ("3", "自定义下载地址更新"), ("4", "仅重建(升级 Chrome 内核)")])
+                    ("3", "自定义下载地址更新"), ("4", "只拉取最新镜像(升级 Chrome)"),
+                    ("5", "本地构建镜像(拉取失败时用)")])
         if v == "0":
             return
         try:
@@ -591,9 +605,11 @@ def update_menu():
                     save(conf)
                     update_from_url(url)
             elif v == "4":
-                compose("build", "--pull", "--no-cache")
-                compose("up", "-d")
-                ok("重建完成")
+                pull_or_build() and ok("已是最新镜像")
+            elif v == "5":
+                if compose("build", "--pull") == 0:
+                    compose("up", "-d")
+                    ok("构建完成")
             else:
                 continue
         except Exception as e:

@@ -1,9 +1,9 @@
 name: nexqd
 
 services:
-  nexkr:
+  nexqd:
+    image: ghcr.io/merlin-node/nexqd:latest
     build: .
-    image: nexqd:latest
     container_name: nexqd
     restart: unless-stopped
     environment:

@@ -6,6 +6,7 @@ NexKr(nexkr.sh)多账号每日自动签到,Docker 部署,Telegram 推送结果�
 - 多账号,每个账号可单独开关自动签到
 - 每天定时签到(默认 09:00 + 随机 0~5 分钟),失败 1 小时后自动补签,每天最多 3 轮
 - `qd` 命令进入管理菜单
+- 镜像由 GitHub Actions 自动构建(`ghcr.io/merlin-node/nexqd`),每周自动更新 Chrome,支持 amd64 / arm64
 
 ## 一、安装
 
@@ -15,7 +16,7 @@ NexKr(nexkr.sh)多账号每日自动签到,Docker 部署,Telegram 推送结果�
 bash <(curl -fsSL https://raw.githubusercontent.com/merlin-node/nexqd/main/install.sh)
 ```
 
-首次安装 3~10 分钟,看到 `✅ 安装完成` 即可。然后输入:
+首次安装 1~3 分钟,看到 `✅ 安装完成` 即可。然后输入:
 
 ```bash
 qd
@@ -41,7 +42,7 @@ qd
 4. 签到设置(时间 / 随机延迟 / 重试次数)
 5. 立即签到
 6. 运行状态/日志
-7. 更新脚本(自动检查 GitHub 新版本)
+7. 更新脚本(检查新版本 / 拉取最新镜像)
 8. 彻底删除
 0. 退出
 ```
@@ -92,3 +93,8 @@ cat /opt/nexqd/data/accounts.json
 - 配置:`/opt/nexqd/data/accounts.json`(仅 root 可读,`.gitignore` 已排除,不会上传仓库)
 - 登录状态:`/opt/nexqd/data/profiles/`
 - 失败截图:`/opt/nexqd/data/shots/`
+
+## 开发者:改代码后
+
+推送到 main 后,GitHub Actions 会自动构建镜像(仓库 Actions 页面看到绿色 ✔ 即完成),
+然后在 VPS 上 `qd` → `7` → `1` 更新。
