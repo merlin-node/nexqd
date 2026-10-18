@@ -1,0 +1,4 @@
+seleniumbase
+requests
+pyautogui
+python-xlib
