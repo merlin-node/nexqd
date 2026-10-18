@@ -18,7 +18,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 REPO = "merlin-node/nexqd"
 REPO_ZIP = f"https://github.com/{REPO}/archive/refs/heads/main.zip"
 REPO_RAW = f"https://raw.githubusercontent.com/{REPO}/main"

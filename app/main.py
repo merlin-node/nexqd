@@ -101,6 +101,21 @@ def update_status(fn):
         os.replace(tmp, STATUS_FILE)
 
 
+def get_pending(aid):
+    """今天点签到前记下的余额(用于重试时还原本次获得)"""
+    p = read_status().get("pending", {}).get(aid)
+    return p if p and p.get("date") == date.today().isoformat() else None
+
+
+def set_pending(aid, before):
+    update_status(lambda st: st.setdefault("pending", {}).__setitem__(
+        aid, {"date": date.today().isoformat(), "before": before}))
+
+
+def clear_pending(aid):
+    update_status(lambda st: st.setdefault("pending", {}).pop(aid, None))
+
+
 def chrome_bin():
     if os.getenv("CHROME_BIN"):
         return os.getenv("CHROME_BIN")
@@ -287,22 +302,33 @@ def checkin_once(acc):
             if is_login_page(sb):
                 do_login(sb, acc)
 
-            before = read_balance(sb)
-            log(f"签到前余额 ${before:.2f}")
+            now_bal = read_balance(sb)
+            pend = get_pending(aid)
             if already_signed(sb):
-                return {"result": "already", "before": before, "after": before}
+                if pend:
+                    # 本轮之前的尝试其实已经签到成功,用当时记下的余额算本次获得
+                    log(f"之前的尝试已签到成功,签到前余额 ${pend['before']:.2f}")
+                    return {"result": "ok", "before": pend["before"], "after": now_bal}
+                return {"result": "already", "before": now_bal, "after": now_bal}
+
+            before = now_bal
+            log(f"签到前余额 ${before:.2f}")
+            set_pending(aid, before)
             if not click_checkin(sb):
                 raise RuntimeError("没找到签到按钮")
-            if not wait_signed(sb):
-                raise RuntimeError("点了签到但没变成「今天已签到」")
+            wait_signed(sb, 15)
 
-            after = before
-            for _ in range(5):
+            # 刷新页面确认结果(余额可能稍后才更新)
+            after, signed = before, False
+            for _ in range(6):
                 sb.sleep(2)
                 open_page(sb, DASH)
                 after = read_balance(sb)
-                if after != before:
+                signed = already_signed(sb)
+                if signed and after != before:
                     break
+            if not signed and after == before:
+                raise RuntimeError("点了签到但页面和余额都没变化")
             log(f"签到后余额 ${after:.2f}")
             return {"result": "ok", "before": before, "after": after}
         except Exception:
@@ -339,6 +365,7 @@ def run_account(conf, acc, final_round=True):
                                        "result": r["result"], "gain": round(gain, 2),
                                        "balance": r["after"], "rounds": 0, "error": ""}
             update_status(ok)
+            clear_pending(aid)
             return True
         except Exception as e:
             err = f"{type(e).__name__}: {e}"
